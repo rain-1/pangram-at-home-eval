@@ -1,8 +1,8 @@
-# Large/local-only data: raw downloads, normalised parquet, model snapshots, runs
-data/
-artifacts/
-models/
-third_party/
+# Large/local-only data (anchored to the repo root): raw downloads, normalised parquet, model snapshots, runs
+/data/
+/artifacts/
+/models/
+/third_party/
 .venv/
 __pycache__/
 *.pyc
