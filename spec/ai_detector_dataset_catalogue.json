@@ -1,0 +1,362 @@
+{
+  "title": "AI-text detector evaluation: source catalogue",
+  "review_date": "2026-10-06",
+  "status": "Research catalogue and proposed sampling budget, not an assembled benchmark or detector result.",
+  "verification": "Author-maintained dataset cards, project pages and papers inspected through web access. Bulk data were not downloaded or exhaustively audited; proposed slice counts require inventory and overlap checks.",
+  "scope": "English-first; preserve independent domain, authorship, generation-mechanism and provenance dimensions.",
+  "recommended_budget": {
+    "core_human": 5000,
+    "student_human": 1000,
+    "fully_ai": 1500,
+    "controlled_mixed": 1000,
+    "aitdna_all_unique_texts": 362,
+    "edited_ai_matched_panel_inputs": 600,
+    "total_detector_inputs": 9462,
+    "core_domains": [
+      "research",
+      "news",
+      "reviews",
+      "encyclopedic/expository",
+      "creative"
+    ],
+    "notes": [
+      "This is a target, not confirmed per-cell availability.",
+      "Keep scholarly abstracts and body prose distinguishable; allow unfilled cells.",
+      "Calibration examples are additional and disjoint by original source.",
+      "Related versions and repeated authors are not independent observations."
+    ]
+  },
+  "recommended_record_fields": [
+    "id",
+    "dataset",
+    "dataset_revision",
+    "source_group_id",
+    "author_id_if_available",
+    "domain",
+    "subdomain",
+    "language",
+    "authorship",
+    "mix_mechanism",
+    "human_provenance_type",
+    "source_date_if_verified",
+    "generator",
+    "generation_parameters_if_available",
+    "text",
+    "ai_char_spans",
+    "word_count",
+    "license",
+    "split"
+  ],
+  "sources": [
+    {
+      "name": "LLMTrace detection",
+      "dataset_id": "iitolstykh/LLMTrace_detection",
+      "url": "https://huggingface.co/datasets/iitolstykh/LLMTrace_detection",
+      "paper": "https://arxiv.org/abs/2509.21269",
+      "role": "primary controlled-mixture candidate",
+      "reported_rows": 79342,
+      "row_scope": "all languages and splits",
+      "languages": [
+        "eng",
+        "ru"
+      ],
+      "labels": [
+        "human",
+        "ai",
+        "mixed"
+      ],
+      "text_field": "text",
+      "domain_field": "data_type",
+      "group_field": "topic_id",
+      "span_field": "ai_char_intervals",
+      "suggested_filter": {
+        "lang": "eng",
+        "label": "mixed",
+        "prompt_type": "fill_gaps"
+      },
+      "license_as_listed": "Apache-2.0",
+      "caveats": [
+        "Other mixed mechanisms are not equivalent to gap replacement.",
+        "Human sources require date/provenance auditing; web-derived human labels are not individually verified.",
+        "Check overlap across classification and detection releases."
+      ]
+    },
+    {
+      "name": "LLMTrace classification",
+      "dataset_id": "iitolstykh/LLMTrace_classification",
+      "url": "https://huggingface.co/datasets/iitolstykh/LLMTrace_classification",
+      "paper": "https://arxiv.org/abs/2509.21269",
+      "role": "domain-stratified human/AI comparisons",
+      "reported_rows": 589086,
+      "row_scope": "all languages and splits",
+      "text_field": "text",
+      "domain_field": "data_type",
+      "group_field": "topic_id",
+      "suggested_filter": {
+        "lang": "eng"
+      },
+      "caveats": [
+        "Balance generator and generation task; source dates need auditing.",
+        "Related sources may also occur in LLMTrace detection."
+      ]
+    },
+    {
+      "name": "RAID",
+      "dataset_id": "liamdugan/raid",
+      "url": "https://huggingface.co/datasets/liamdugan/raid",
+      "paper": "https://arxiv.org/abs/2405.07940",
+      "role": "binary domain diagnostics and separate robustness panel",
+      "text_field": "generation",
+      "domain_field": "domain",
+      "group_field": "source_id",
+      "human_label_rule": "model == 'human'",
+      "clean_filter": {
+        "attack": "none"
+      },
+      "english_prose_domains": [
+        "abstracts",
+        "books",
+        "news",
+        "poetry",
+        "recipes",
+        "reddit",
+        "reviews",
+        "wiki"
+      ],
+      "license_as_listed": "MIT",
+      "caveats": [
+        "Official test labels are not publicly supplied.",
+        "Labelled train is not unseen evaluation for RAID-trained baselines.",
+        "Variants share source documents; generators are primarily from the 2024 benchmark era."
+      ]
+    },
+    {
+      "name": "DAMASHA / MAS",
+      "dataset_id": "saiteja33/DAMASHA",
+      "url": "https://huggingface.co/datasets/saiteja33/DAMASHA",
+      "paper": "https://aclanthology.org/2026.findings-eacl.326/",
+      "repository": "https://github.com/saitejalekkala33/DAMASHA",
+      "role": "replacement mixtures and separate perturbation robustness",
+      "paper_counts": {
+        "clean_combined": 95859,
+        "new_clean": 46830,
+        "new_sentence_replacement": 9875,
+        "including_six_attack_variants": 671013
+      },
+      "text_field": "hybrid_text (clean); attacked_text (perturbed)",
+      "span_encoding": "<AI_Start> ... </AI_End>",
+      "license_as_listed": "CC-BY-4.0",
+      "caveats": [
+        "Remove label tags while reconstructing offsets before inference.",
+        "Default HF viewer reports incompatible CSV schemas; choose individual files.",
+        "Includes TriBERT and M4GT, and reuses MAGE/M4 source material.",
+        "Validate released row-to-domain/generator/mechanism mapping before enforcing quotas."
+      ]
+    },
+    {
+      "name": "AITDNA",
+      "dataset_id": "UKPLab/AITDNA",
+      "url": "https://huggingface.co/datasets/UKPLab/AITDNA",
+      "paper": "https://arxiv.org/abs/2606.04906",
+      "role": "logged real-world co-writing diagnostic",
+      "unique_texts": 362,
+      "human_only_texts": 95,
+      "co_written_texts": 267,
+      "displayed_rows_all_views": 3258,
+      "language": "English",
+      "recommended_views": [
+        "original",
+        "span"
+      ],
+      "license_as_listed": "GPL-2.0",
+      "caveats": [
+        "Nine views are not nine independent corpora.",
+        "Default original view contains edit histories, requiring reconstruction.",
+        "Document-view AI labels use a 50% threshold, not an any-AI rule.",
+        "Use metadata author/session grouping; 95 human controls are not sufficient for precise low-FPR estimates."
+      ]
+    },
+    {
+      "name": "Beemo",
+      "dataset_id": "toloka/beemo",
+      "url": "https://huggingface.co/datasets/toloka/beemo",
+      "paper": "https://arxiv.org/abs/2411.04032",
+      "role": "matched pure-human, AI-output and expert-edited-AI challenge",
+      "rows": 2187,
+      "group_field": "prompt_id",
+      "text_fields": {
+        "human_only": "human_output",
+        "ai_output": "model_output",
+        "expert_edited_ai": "human_edits"
+      },
+      "license_as_listed": "Field-dependent: No Robots fields CC-BY-NC-4.0; expert edits MIT subject to model terms; generated text subject to generator terms",
+      "caveats": [
+        "human_edits is NOT human-only.",
+        "No exact causal replacement-span gold.",
+        "Deduplicate No Robots human outputs across rows and external uses."
+      ]
+    },
+    {
+      "name": "IMDb",
+      "dataset_id": "stanfordnlp/imdb",
+      "url": "https://huggingface.co/datasets/stanfordnlp/imdb",
+      "role": "historical human movie-review candidate",
+      "provenance": "2011 corpus release",
+      "text_field": "text",
+      "license_as_listed": "other",
+      "caveats": [
+        "Dataset label is sentiment, not AI authorship.",
+        "Historical source evidence is not per-review keystroke verification.",
+        "Handle HTML consistently; audit source terms."
+      ]
+    },
+    {
+      "name": "XSum",
+      "dataset_id": "EdinburghNLP/xsum",
+      "url": "https://huggingface.co/datasets/EdinburghNLP/xsum",
+      "repository": "https://github.com/EdinburghNLP/XSum",
+      "role": "historical human news candidate",
+      "provenance": "2018 release of BBC article corpus",
+      "rows": 226711,
+      "text_field": "document",
+      "group_field": "id",
+      "license_note": "Source-content rights require review; do not infer news rights from repository code license.",
+      "caveats": [
+        "Use original documents, not model-produced summaries.",
+        "May overlap detector benchmarks built on XSum."
+      ]
+    },
+    {
+      "name": "Scientific Papers",
+      "dataset_id": "armanc/scientific_papers",
+      "url": "https://huggingface.co/datasets/armanc/scientific_papers",
+      "repository": "https://github.com/armancohan/long-summarization",
+      "role": "historical scholarly abstracts and body-paragraph candidates",
+      "provenance": "2018 arXiv/PubMed summarization corpus",
+      "configs": [
+        "arxiv",
+        "pubmed"
+      ],
+      "text_fields": [
+        "article",
+        "abstract"
+      ],
+      "license_as_listed": "unknown",
+      "caveats": [
+        "Old HF loading script; use verified source files or a checked conversion.",
+        "Math placeholders and extraction artifacts can confound comparisons.",
+        "Audit article-specific source licenses; keep papers grouped."
+      ]
+    },
+    {
+      "name": "WikiText",
+      "dataset_id": "Salesforce/wikitext",
+      "url": "https://huggingface.co/datasets/Salesforce/wikitext",
+      "role": "historical human encyclopedic prose candidate",
+      "provenance": "2016 benchmark release",
+      "recommended_config": "wikitext-103-raw-v1",
+      "text_field": "text",
+      "license_as_listed": "CC-BY-SA-4.0",
+      "caveats": [
+        "Rows are not independent documents; reconstruct article boundaries.",
+        "Check historical Wikipedia source overlap with detector training data."
+      ]
+    },
+    {
+      "name": "PG-19",
+      "dataset_id": "deepmind/pg19",
+      "url": "https://huggingface.co/datasets/deepmind/pg19",
+      "role": "historical literature supplementary false-positive panel",
+      "provenance": "Books published before 1919",
+      "book_counts": {
+        "train": 28602,
+        "validation": 50,
+        "test": 100
+      },
+      "text_field": "text",
+      "group_field": "book URL / book ID; additionally author",
+      "license_as_listed": "Apache-2.0 on dataset card; verify underlying book rights",
+      "caveats": [
+        "Historical style is not a proxy for modern writing.",
+        "Contains lexical substitutions and some transcription/front-matter artifacts.",
+        "HF loader is legacy; original project files may be preferable."
+      ]
+    },
+    {
+      "name": "PERSUADE 2.0",
+      "url": "https://github.com/scrosseye/persuade_corpus_2.0",
+      "role": "student-writing human false-positive panel",
+      "reported_scale": "over 25,000 essays",
+      "provenance": "Original corpus of US grades 6-12 student essays; 15 prompts",
+      "license_as_listed": "CC-BY-NC-SA-4.0",
+      "caveats": [
+        "Use author-maintained original distribution, not AI-augmented competition amalgamations.",
+        "Collection dates were not independently verified during this review.",
+        "Group by writer where identifiers permit."
+      ]
+    },
+    {
+      "name": "No Robots",
+      "dataset_id": "HuggingFaceH4/no_robots",
+      "url": "https://huggingface.co/datasets/HuggingFaceH4/no_robots",
+      "role": "modern, curator-attested human instruction-response panel",
+      "rows": 10000,
+      "provenance": "Skilled human annotators; vendor instructed not to use LLM-generated outputs",
+      "text_field": "assistant message content in messages",
+      "group_field": "prompt_id",
+      "license_as_listed": "CC-BY-NC-4.0",
+      "caveats": [
+        "Curator attestation, not publicly logged token provenance.",
+        "Use original English, not machine-translated derivatives.",
+        "Overlaps Beemo human_output."
+      ]
+    },
+    {
+      "name": "MAGE",
+      "dataset_id": "yaful/MAGE",
+      "url": "https://huggingface.co/datasets/yaful/MAGE",
+      "role": "reserve / in-distribution regression when already used for training",
+      "released_rows_as_viewed": 436606,
+      "text_field": "text",
+      "domain_generator_field": "src",
+      "labels": {
+        "1": "human",
+        "0": "ai"
+      },
+      "license_as_listed": "Apache-2.0",
+      "caveats": [
+        "Not independent evaluation if previously used for detector development.",
+        "Parent texts are reused in other detection corpora."
+      ]
+    },
+    {
+      "name": "Open Pangram / EditLens",
+      "dataset_id": "pangram/editlens_iclr",
+      "url": "https://huggingface.co/datasets/pangram/editlens_iclr",
+      "repository": "https://github.com/pangramlabs/EditLens",
+      "release_description": "https://www.pangram.com/blog/introducing-open-pangram",
+      "role": "optional AI-editing test, distinct from block replacement",
+      "license_as_listed": "CC-BY-NC-SA-4.0",
+      "access": "Gated: login and acceptance of contact-sharing conditions",
+      "caveats": [
+        "AI editing is not exact replacement-span provenance.",
+        "Gated files were not inspected.",
+        "Not independent of EditLens-trained baselines."
+      ]
+    },
+    {
+      "name": "CoAuthor",
+      "url": "https://coauthor.stanford.edu/",
+      "paper": "https://arxiv.org/abs/2201.06796",
+      "role": "optional additional logged co-writing sessions",
+      "sessions": 1445,
+      "writers": 63,
+      "generator": "GPT-3",
+      "caveats": [
+        "Older generator distribution.",
+        "Replay edits and accepted suggestions to recover final provenance.",
+        "Group by writer/session; license not verified in this review."
+      ]
+    }
+  ]
+}

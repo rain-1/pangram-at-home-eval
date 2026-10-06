@@ -1,0 +1,251 @@
+# benchmark-v3 plan = benchmark-v2 plus the `poisoned_sources` exclusion below.
+# benchmark-v2 plan: spec/benchmark_plan.yaml (v1, unchanged) plus the `v2` section below.
+# Planning configuration for the coding agent to implement and resolve.
+# This is NOT a claim that the requested counts or data access are verified.
+config_version: '1.0'
+benchmark_id: ai-detector-panels-v3
+purpose: development_regression
+language: en
+seed: 42
+catalogue: ai_detector_dataset_catalogue.json
+
+acquisition:
+  catalogue_scope: all_16_entries
+  include_reserve_sources: true
+  prefer: author_maintained_original_release
+  pin_revisions: true
+  verify_checksums: true
+  resume: true
+  inspect_disk_and_download_sizes: true
+  respect_existing_authorisations_only: true
+  allow_partial_progress_with_explicit_status: true
+  no_paid_api_or_compute: true
+  no_external_upload: true
+
+core_domains:
+  - research
+  - news
+  - reviews
+  - expository
+  - creative
+
+sampling:
+  freeze_before_evaluation_scores: true
+  grouping: cross_dataset_leakage_group
+  sample_without_detector_scores: true
+  preserve_matched_source_references: true
+  exact_duplicates: collapse_with_multiple_panel_memberships
+  near_duplicates: audit_and_group_before_splitting
+  high_confidence_humans:
+    favour_one_per_source: true
+    favour_one_per_verified_writer: true
+  quotas_are_targets_not_guarantees: true
+  empty_cells: explicit_unavailable
+  proposed_unique_evaluation_range: [8000, 12000]
+  nominal_input_total_before_deduplication: 9962
+  panels:
+    - id: audited_human_core
+      target_total: 5000
+      target_per_core_domain: 1000
+      authorship: human
+      provenance: independently_audited
+    - id: student_human
+      target_total: 1000
+      authorship: human
+      source: PERSUADE_2.0_original
+    - id: fully_ai_core
+      target_total: 1500
+      target_per_core_domain: 300
+      authorship: ai
+      balance_where_possible: [dataset, generator, generation_task]
+    - id: controlled_replacement
+      target_total: 1000
+      target_per_core_domain: 200
+      authorship: mixed
+      mechanisms: [sentence_replacement, block_replacement]
+      exact_span_gold_required: true
+      balance_where_possible: [dataset, generator, ai_fraction_bin, block_length_bin]
+    - id: aitdna_real_cowriting
+      selection: all_eligible_unique_final_texts
+      expected_unique_texts_to_verify: 362
+      preserve_human_controls: true
+    - id: beemo_matched_editing
+      target_complete_triplets: 200
+      nominal_target_inputs: 600
+      fields: [human_output, model_output, human_edits]
+      preserve_pairs_and_deduplicate_humans: true
+    - id: modern_human_instructions
+      target_total: 500
+      authorship: human
+      source: HuggingFaceH4/no_robots
+      provenance: curator_attested
+    - id: benchmark_source_matched_human_references
+      selection: needed_matched_originals_not_already_present
+      target_total: null
+      require_extra_count_reporting: true
+      automatic_trusted_human_promotion: false
+
+calibration:
+  role: calibration
+  authorship: human
+  target_per_domain: 500
+  domains: [research, news, reviews, expository, creative, student, instruction]
+  nominal_target_total: 3500
+  leakage_group_disjoint_from_evaluation: true
+  same_ids_for_all_models: true
+  require_complete_prediction_coverage_for_official_thresholds: true
+  score_at: document_after_aggregation
+  thresholds:
+    - id: human_fpr_1pct
+      target_fpr: 0.01
+      primary: true
+    - id: human_fpr_5pct
+      target_fpr: 0.05
+      primary: false
+  selection_rule: descending_scores_at_index_floor_alpha_times_n
+  decision_comparator: '>'
+  no_test_set_threshold_tuning: true
+
+models:
+  - id: open_pangram_roberta
+    checkpoint: pangram/editlens_roberta-large
+    base_model: FacebookAI/roberta-large
+    tokenizer: FacebookAI/roberta-large
+    max_length_including_special_tokens: 512
+    score_semantics: ordinal_ai_intervention_extent
+    score_direction: higher_is_more_ai_signal
+    reference_preprocessing: pangramlabs/EditLens/scripts/preprocess.py::clean_text
+    checkpoint_revision: null  # Must be resolved and pinned at acquisition.
+  - id: open_pangram_llama
+    checkpoint: pangram/editlens_Llama-3.2-3B
+    base_model: meta-llama/Llama-3.2-3B
+    tokenizer: meta-llama/Llama-3.2-3B
+    max_length_including_special_tokens: 1024
+    score_semantics: ordinal_ai_intervention_extent
+    score_direction: higher_is_more_ai_signal
+    reference_preprocessing: pangramlabs/EditLens/scripts/preprocess.py::clean_text
+    head: LayerNorm_then_bias_free_Linear
+    reference_quantisation: nf4_4bit
+    reference_compute_dtype: bfloat16
+    checkpoint_revision: null  # Must be resolved and pinned at acquisition.
+
+protocols:
+  - id: shared_windows_v1
+    primary: true
+    implementation_kind: harness_wrapper
+    common_canonical_windows: true
+    target_whitespace_words: 192
+    nominal_overlap_words: 64
+    shorten_to_fit_all_frozen_reference_tokenizers: true
+    overlong_word_fallback: explicit_codepoint_split
+    model_preprocessing_applied_to: each_window
+    prohibit_hidden_truncation: true
+    preserve_all_window_scores: true
+    document_score: max_window_score
+    gold_independent_window_placement: true
+  - id: native_truncate_v1
+    primary: false
+    implementation_kind: upstream_native_reference
+    model_preprocessing_applied_to: entire_document
+    max_length: per_model_reference
+    record_effective_coverage: true
+
+metrics:
+  official_single_overall_quality_score: false
+  primary:
+    - human_fpr
+    - fully_ai_recall
+    - mixed_recall
+    - prediction_coverage
+  secondary:
+    - auroc
+    - average_precision
+    - confusion_matrices
+    - timing_and_throughput
+  native_localisation:
+    supported_by_current_baselines: false
+    future_model_metrics:
+      - ai_character_precision
+      - ai_character_recall
+      - ai_character_f1
+      - human_character_false_highlight_rate
+    eligible_characters: known_non_whitespace_unicode_codepoints
+  raw_extent_score_is_not_probability: true
+  brier_or_ece_without_probability_calibration: false
+  confidence_level: 0.95
+  cluster_bootstrap_replicates: 2000
+  cluster_bootstrap_seed: 42
+  undefined: null_with_reason
+  failures: show_coverage_and_best_worst_case_bounds
+  rate_storage: fraction_plus_explicit_percent_and_counts
+
+slices:
+  axes:
+    - domain
+    - subdomain
+    - dataset
+    - human_provenance
+    - authorship
+    - mix_mechanism
+    - generator
+    - length_bin
+    - window_count
+    - ai_fraction_bin
+    - block_length_bin
+    - block_count
+    - block_position
+  ai_fraction_bins:
+    - {id: gt0_le5pct, lower_exclusive: 0.0, upper_inclusive: 0.05}
+    - {id: gt5_le10pct, lower_exclusive: 0.05, upper_inclusive: 0.10}
+    - {id: gt10_le25pct, lower_exclusive: 0.10, upper_inclusive: 0.25}
+    - {id: gt25_le50pct, lower_exclusive: 0.25, upper_inclusive: 0.50}
+    - {id: gt50_lt100pct, lower_exclusive: 0.50, upper_exclusive: 1.0}
+    - {id: unknown, missing_metadata: true}
+  retain_separate_full_ai_endpoint: true
+  resolve_length_and_block_bins_before_scoring: true
+  materialise_useful_predeclared_slices_not_full_cartesian_product: true
+
+outputs:
+  full: results.full.json
+  summary: results.summary.json
+  additional_gzip: true
+  intermediate_resume_format: jsonl_or_parquet
+  schema_version: '1.0.0'
+  contract: RESULTS_CONTRACT.md
+  include_calibration_predictions_in_full: true
+  summary_is_deterministic_reduction_of_full: true
+  viewer: local_only
+  external_text_upload: false
+  redacted_export_supported: true
+  include_per_source_acquisition_status: true
+  include_comparability_fingerprints: true
+
+# ----------------------------------------------------------------------------------------------
+# v2 changes (user requests 2026-10-06). Everything not listed here follows v1.
+v2:
+  near_dup_verification: exact_jaccard
+  drop_panels: [damasha_tagged_mixed_unknown_mechanism]
+  trusted_human_sources:           # XSum removed from evaluation and calibration (user will train on it)
+    research: scientific_papers_detok   # PubMed only, lossless detokenisation, lowercase retained
+    news: cnn_dailymail
+    reviews: imdb
+    expository: wikitext_detok
+    creative: pg19
+    student: persuade
+  fully_ai_creative:
+    sources: [storyscope, hap_e2]
+    target: 300
+  heterogeneous_block_replacement:
+    source: generate_heterogeneous   # release v1.3.0, test split only
+    target_mixed: 300
+    include_matched_controls: true
+  lamp_human_edited_ai:
+    target_pairs: 100
+
+# ----------------------------------------------------------------------------------------------
+# v3 (user decision 2026-10-06): No Robots is POISON. Its human responses dominated calibration false
+# positives (only dataset with a non-overlapping threshold interval, both models/protocols/targets).
+# Excluded everywhere: evaluation, calibration, and Beemo's human_output field (which is No Robots text).
+poisoned_sources:
+  no_robots: "POISON: human instruction responses score as AI-like and set the pooled threshold (see benchmark-v2 calibration sensitivity)"
+  beemo:human_output: "POISON: Beemo human_output is No Robots text"

@@ -1,0 +1,41 @@
+# Detector registry. Adding a model = an adapter class + an entry here.
+# Revisions resolved 2026-10-06 (immutable commit SHAs). Local snapshots live in models/hf
+# (Hugging Face cache layout); the HF token is read from the user's existing login.
+models:
+  - id: open_pangram_roberta
+    display_name: Open Pangram EditLens RoBERTa-large
+    adapter: aidet_eval.models.editlens:EditLensDetector
+    checkpoint: pangram/editlens_roberta-large
+    checkpoint_revision: f93e1ace74528cfb48f337ab2fe946fb71a728cb
+    checkpoint_allow: ["config.json", "model.safetensors", "README.md", "*.json", "*.txt"]
+    base_model: FacebookAI/roberta-large
+    base_revision: 722cf37b1afa9454edce342e7895e588b6ff1d59
+    base_allow: ["config.json", "tokenizer.json", "tokenizer_config.json", "vocab.json", "merges.txt", "README.md"]
+    tokenizer: FacebookAI/roberta-large   # upstream inference.py loads AutoTokenizer(base_model)
+    loader: full_sequence_classification
+    max_length: 512
+    precision:
+      weights: float32
+      autocast: bfloat16      # matches upstream Trainer(bf16=True) evaluation
+      quantisation: null
+    batch_size: 32
+    licence: CC-BY-NC-SA-4.0
+  - id: open_pangram_llama
+    display_name: Open Pangram EditLens Llama-3.2-3B (QLoRA adapter)
+    adapter: aidet_eval.models.editlens:EditLensDetector
+    checkpoint: pangram/editlens_Llama-3.2-3B
+    checkpoint_revision: b5f8044f631f5b455eafbcb569dcf175f2b0726d
+    checkpoint_allow: ["adapter_config.json", "adapter_model.safetensors", "README.md", "*.json"]
+    base_model: meta-llama/Llama-3.2-3B
+    base_revision: 13afe5124825b4f3751f836b40dafda64c1ed062
+    base_allow: ["config.json", "generation_config.json", "model-*.safetensors", "model.safetensors.index.json",
+                 "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json", "LICENSE.txt", "USE_POLICY.md", "README.md"]
+    tokenizer: meta-llama/Llama-3.2-3B
+    loader: qlora_normed_linear_head
+    max_length: 1024
+    precision:
+      weights: nf4_4bit
+      autocast: bfloat16
+      quantisation: {load_in_4bit: true, bnb_4bit_quant_type: nf4, bnb_4bit_compute_dtype: bfloat16}
+    batch_size: 8
+    licence: CC-BY-NC-SA-4.0 (adapter); Llama 3.2 Community License (base)

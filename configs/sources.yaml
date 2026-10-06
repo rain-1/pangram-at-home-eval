@@ -1,0 +1,188 @@
+# Resolved acquisition registry. One entry per catalogue source, keyed by the
+# catalogue's exact `name`. The original catalogue (spec/ai_detector_dataset_catalogue.json)
+# is kept unchanged; discrepancies found during acquisition go to data/inventory/source_audit.json.
+# Revisions were resolved on 2026-10-06 and are immutable commit SHAs or upstream file hashes.
+sources:
+  - key: llmtrace_detection
+    catalogue_name: LLMTrace detection
+    kind: hf_dataset
+    repo: iitolstykh/LLMTrace_detection
+    revision: 332053804f8798177ff2ecb1148e1839ed429ba3
+    allow: ["*.jsonl", "README.md"]
+    primary_role: controlled_replacement_mixtures
+  - key: llmtrace_classification
+    catalogue_name: LLMTrace classification
+    kind: hf_dataset
+    repo: iitolstykh/LLMTrace_classification
+    revision: 252e21e3dca713bc82bc3c1ef73bf533d7c9fc7e
+    allow: ["*.jsonl", "README.md"]
+    primary_role: fully_ai_and_matched_human_references
+  - key: raid
+    catalogue_name: RAID
+    kind: hf_dataset
+    repo: liamdugan/raid
+    revision: 865cac74188466cb0c3b7574a10204007b57a459
+    allow: ["*.csv", "README.md"]
+    primary_role: fully_ai_labelled_train_release_and_reserve_attacks
+  - key: damasha
+    catalogue_name: DAMASHA / MAS
+    kind: hf_dataset
+    repo: saiteja33/DAMASHA
+    revision: 17061412e00ff91dd86ef2f05efe82b08ac3d669
+    allow: ["*.csv", "README.md"]
+    primary_role: replacement_mixtures_and_reserve_perturbations
+  - key: aitdna
+    catalogue_name: AITDNA
+    kind: hf_dataset
+    repo: UKPLab/AITDNA
+    revision: 21d77f7d44833507750c0da309295c4147c1bda5
+    allow: ["*/*.parquet", "README.md"]
+    primary_role: real_cowriting_diagnostic
+  - key: beemo
+    catalogue_name: Beemo
+    kind: hf_dataset
+    repo: toloka/beemo
+    revision: 9c014107fe9b85c4c784c1ce3a43b0b7b0a6d162
+    allow: ["data/*.parquet", "README.md"]
+    primary_role: matched_editing_panel
+  - key: imdb
+    catalogue_name: IMDb
+    kind: hf_dataset
+    repo: stanfordnlp/imdb
+    revision: e6281661ce1c48d982bc483cf8a173c1bbeb5d31
+    allow: ["plain_text/*.parquet", "README.md"]
+    primary_role: historical_human_reviews
+  - key: xsum
+    catalogue_name: XSum
+    kind: hf_dataset
+    repo: EdinburghNLP/xsum
+    revision: 7d4d486c2f8ef850b1a11aead99b894ff3dd7da9
+    allow: ["data/*.parquet", "README.md"]
+    primary_role: historical_human_news
+  - key: scientific_papers
+    catalogue_name: Scientific Papers
+    kind: http_files
+    # The HF repo armanc/scientific_papers is a legacy loader script only. The author
+    # README (github.com/armancohan/long-summarization) links Google Drive plus an
+    # author-listed archive.org mirror; we use the mirror and verify its published MD5/SHA1.
+    loader_repo: armanc/scientific_papers
+    loader_revision: ebf46851f7c2d994773a7076a472deeeb434361c
+    files:
+      - url: https://archive.org/download/armancohan-long-summarization-paper-code/arxiv-dataset.zip
+        name: arxiv-dataset.zip
+        size: 3624420843
+        md5: 6242aaf5cfcc7814473eee8b779c1b9f
+        sha1: 26f95b9e0f37e9d2bcef31dd1dcd3d25d9367b4d
+      - url: https://archive.org/download/armancohan-long-summarization-paper-code/pubmed-dataset.zip
+        name: pubmed-dataset.zip
+        size: 880225504
+        md5: 3ae396f2b690253e7379a038b410300c
+        sha1: ea1f328f912df44d72ffbae3b4399454b26e9df2
+    primary_role: historical_human_research
+  - key: wikitext
+    catalogue_name: WikiText
+    kind: hf_dataset
+    repo: Salesforce/wikitext
+    revision: b08601e04326c79dfdd32d625aee71d232d685c3
+    allow: ["wikitext-103-raw-v1/*.parquet", "README.md"]
+    primary_role: historical_human_expository
+  - key: pg19
+    catalogue_name: PG-19
+    kind: gcs_bucket
+    # HF deepmind/pg19 is a legacy loader pointing at the DeepMind GCS bucket; the bucket
+    # is the original release. Object MD5s come from the GCS JSON listing.
+    loader_repo: deepmind/pg19
+    loader_revision: 4d28bd77e66947ad3835cf78ed7aaeb4dd87ad8b
+    bucket: deepmind-gutenberg
+    prefixes: ["metadata.csv", "train/", "validation/", "test/"]
+    primary_role: historical_human_creative
+  - key: persuade
+    catalogue_name: PERSUADE 2.0
+    kind: gdrive_files
+    repo_url: https://github.com/scrosseye/persuade_corpus_2.0
+    repo_commit_note: README blob 14104524583c4eee5f81888b686e38c53a0fda1d
+    files:
+      - gdrive_id: 13phHyDzIsb0MHyJr6q-B-qIa9P2tM135
+        name: persuade_train_download
+      - gdrive_id: 1K1SIJiG-2zWgMlTzxQeYOcLwOsFaVel1
+        name: persuade_test_download
+        # Author README publishes the zip password ("persuade_test"); no agreement is accepted.
+    primary_role: student_human
+  - key: no_robots
+    catalogue_name: No Robots
+    kind: hf_dataset
+    repo: HuggingFaceH4/no_robots
+    revision: e6f9a4ac5c37faeb744ba9ecf0473184d7f8105b
+    allow: ["data/*.parquet", "README.md"]
+    primary_role: modern_human_instructions
+  - key: mage
+    catalogue_name: MAGE
+    kind: hf_dataset
+    repo: yaful/MAGE
+    revision: 342663f0a2b775455c023f5d36a1341ff0ec5402
+    allow: ["*.csv", "README.md", "*.py"]
+    primary_role: reserve
+  - key: editlens_iclr
+    catalogue_name: Open Pangram / EditLens
+    kind: hf_dataset
+    repo: pangram/editlens_iclr
+    revision: 34ac1ade5a814c4cea098ef70328d92880d1f1c0
+    allow: ["data/*.parquet", "README.md"]
+    gated: true
+    primary_role: in_family_reference_panel
+  - key: coauthor
+    catalogue_name: CoAuthor
+    kind: gdrive_files
+    repo_url: https://coauthor.stanford.edu/
+    files:
+      - gdrive_id: 1C9FCCsyY-5I7mcBHi-__R7lxHkGX_-9Q
+        name: coauthor_sessions_download
+      - gsheet_id: 1O3EXJm52TQHfFSbzVGZmNIzzdu5ow6IjnOBrGTUY02o
+        name: coauthor_metadata.csv
+    primary_role: reserve_cowriting
+
+# ---------------------------------------------------------------------------------------------
+# Additional sources added for benchmark-v2 at the user's request (2026-10-06). These are NOT
+# catalogue entries; they carry `catalogue_name: null` and are inventoried alongside the 16.
+extra_sources:
+  - key: storyscope
+    catalogue_name: null
+    kind: hf_dataset
+    repo: jjrussell10/storyscope
+    revision: befcb672d8b2c8d42a952fa6e40aa723290ff4ea
+    allow: ["stories_test.parquet", "stories_dev.parquet", "README.md"]
+    primary_role: fully_ai_creative (2026 frontier generators; no human text released)
+  - key: hap_e2
+    catalogue_name: null
+    kind: hf_dataset
+    repo: browndw/human-ai-parallel-corpus-2
+    revision: 6de69a994aeb9aab6249ff4a7f800ea8c929079c
+    allow: ["README.md", "text_data/hape2-text_chunk_1.parquet", "text_data/hape2-text_chunk_2.parquet",
+            "text_data/hape2-text_gpt-5-mini-2025-08-07.parquet", "text_data/hape2-text_claude-haiku-4-5-20251001.parquet",
+            "text_data/hape2-text_gpt-4o-2024-08-06.parquet", "text_data/hape2-text_gpt-4o-mini-2024-07-18.parquet",
+            "text_data/hape2-text_Meta-Llama-3-70B-Instruct.parquet", "text_data/hape2-text_Meta-Llama-3-8B-Instruct.parquet",
+            "text_data/hape2-text_gemma-2-27b-it.parquet", "text_data/hape2-text_gemma-2-9b-it.parquet"]
+    primary_role: fully_ai_creative continuations + matched human continuations
+  - key: lamp
+    catalogue_name: null
+    kind: github_files
+    repo_url: https://github.com/salesforce/creativity_eval
+    commit: 3d029879df
+    files:
+      - path: Writing_Alignment/LAMP/LAMP-train-val-test.json
+        git_blob_sha1: 389bc5783ea206e8e052890246625e2697b4694a
+    primary_role: creative human_edited_ai (MFA writers editing LLM paragraphs)
+  - key: cnn_dailymail
+    catalogue_name: null
+    kind: hf_dataset
+    repo: abisee/cnn_dailymail
+    revision: 96df5e686bee6baa90b8bee7c28b81fa3fa6223d
+    allow: ["3.0.0/*.parquet", "README.md"]
+    primary_role: historical_human_news (replaces XSum, which the user will train on)
+  - key: generate_heterogeneous
+    catalogue_name: null
+    kind: local_release
+    path: ../generate-heterogeneous/releases/heterogeneous-ai-spans-v1.3.0
+    files: ["data/mixed/test.parquet", "data/human_controls/test.parquet", "README.md", "LICENSE.md", "SHA256SUMS.txt"]
+    checksums_file: SHA256SUMS.txt
+    primary_role: block_replacement mixtures (Claude generators) + matched human controls; test split only (group-isolated from train)

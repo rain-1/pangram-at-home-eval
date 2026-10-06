@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detector Eval Viewer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Detector Eval Viewer</h1>
+  <label>Run <select id="run"></select></label>
+  <nav id="tabs">
+    <button data-tab="scorecard" class="active">Scorecard</button>
+    <button data-tab="calibration">Calibration sensitivity</button>
+    <button data-tab="compare">Compare</button>
+    <button data-tab="errors">Error browser</button>
+    <button data-tab="inspect">Coverage &amp; spans</button>
+    <button data-tab="provenance">Run provenance</button>
+  </nav>
+</header>
+<div id="banner"></div>
+<main>
+  <section id="scorecard" class="tab active"></section>
+  <section id="calibration" class="tab"></section>
+  <section id="compare" class="tab"></section>
+  <section id="errors" class="tab"></section>
+  <section id="inspect" class="tab"></section>
+  <section id="provenance" class="tab"></section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

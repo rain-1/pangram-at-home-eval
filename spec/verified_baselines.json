@@ -1,0 +1,110 @@
+{
+  "title": "Verified Open Pangram baseline integration references",
+  "checked_date": "2026-10-06",
+  "verification_scope": "Public model cards, the official collection/release page, and source files read through the GitHub connector. Gated checkpoint payloads were not downloaded or executed for this handoff.",
+  "code_repository": "https://github.com/pangramlabs/EditLens",
+  "release_page": "https://www.pangram.com/blog/introducing-open-pangram",
+  "collection": "https://huggingface.co/collections/pangram/open-pangram",
+  "models": [
+    {
+      "id": "open_pangram_roberta",
+      "checkpoint": "pangram/editlens_roberta-large",
+      "model_card": "https://huggingface.co/pangram/editlens_roberta-large",
+      "base_model": "FacebookAI/roberta-large",
+      "reference_max_length": 512,
+      "listed_licence": "CC-BY-NC-SA-4.0",
+      "access_at_check": "Model page requires acceptance of contact-sharing conditions for files.",
+      "loader_note": "Official inference uses the full sequence-classification checkpoint for the non-QLoRA branch. Inspect the downloaded payload rather than relying on automatic model-card PEFT suggestions.",
+      "checkpoint_revision": null
+    },
+    {
+      "id": "open_pangram_llama",
+      "checkpoint": "pangram/editlens_Llama-3.2-3B",
+      "model_card": "https://huggingface.co/pangram/editlens_Llama-3.2-3B",
+      "base_model": "meta-llama/Llama-3.2-3B",
+      "reference_max_length": 1024,
+      "listed_licence": "CC-BY-NC-SA-4.0",
+      "access_at_check": "Model page requires acceptance of contact-sharing conditions for files; separately check access and terms for the base model.",
+      "loader_note": "PEFT/QLoRA sequence-classification adapter. Install the saved NormedLinear score architecture (LayerNorm then bias-free Linear) before loading adapter/head.",
+      "reference_quantisation": {
+        "load_in_4bit": true,
+        "bnb_4bit_quant_type": "nf4",
+        "bnb_4bit_compute_dtype": "bfloat16"
+      },
+      "checkpoint_revision": null
+    }
+  ],
+  "score": {
+    "semantics": "Expected ordinal AI-intervention bucket, rescaled to [0,1].",
+    "formula": "sum(softmax(logits)[k] * k for k in range(K)) / (K - 1)",
+    "n_buckets_in_inspected_training_configs": 4,
+    "n_buckets_loading_rule": "Infer and verify from the actual checkpoint/config/saved score-head weights; do not assume four when loading.",
+    "not_a_calibrated_ai_presence_probability": true,
+    "not_a_ground_truth_ai_character_fraction": true
+  },
+  "preprocessing": {
+    "entrypoint": "scripts/preprocess.py::clean_text",
+    "ordered_steps": [
+      "normalize_emoji",
+      "remove_think_tag",
+      "remove_ai_header",
+      "lowercase",
+      "normalize_whitespace"
+    ],
+    "header_prefixes_in_inspected_code": [
+      "Sure",
+      "Here",
+      "Abstract",
+      "Title",
+      "I'm happy to help",
+      "Certainly"
+    ],
+    "warning": "Preserve original canonical text and gold offsets. Reference preprocessing can delete opening content and change Unicode lengths. Copy exact pinned semantics and record effective coverage."
+  },
+  "inspected_source_files": [
+    {
+      "path": "README.md",
+      "blob_sha": "b0ee91c2f59989030662b2c6fdd774598c5f1ea2",
+      "url": "https://github.com/pangramlabs/EditLens/blob/main/README.md"
+    },
+    {
+      "path": "scripts/inference.py",
+      "blob_sha": "53b784cd06906260051d3c0c0abf63aa68e7f4fb",
+      "url": "https://github.com/pangramlabs/EditLens/blob/main/scripts/inference.py"
+    },
+    {
+      "path": "scripts/train.py",
+      "blob_sha": "16457842d9cd6cb157a525daba2b48230cda38bc",
+      "url": "https://github.com/pangramlabs/EditLens/blob/main/scripts/train.py",
+      "read_scope": "First 180 lines, including NormedLinear and model construction."
+    },
+    {
+      "path": "scripts/preprocess.py",
+      "blob_sha": "7d615e32612a916675b8345e6888294ffad60031",
+      "url": "https://github.com/pangramlabs/EditLens/blob/main/scripts/preprocess.py"
+    },
+    {
+      "path": "configs/llama.yaml",
+      "blob_sha": "675f2f93253cfc0e134446c8051e6cb8dd3f3564",
+      "url": "https://github.com/pangramlabs/EditLens/blob/main/configs/llama.yaml"
+    },
+    {
+      "path": "configs/roberta.yaml",
+      "blob_sha": "6853d9e63899ce75d510b1de8242683ae7484f5e",
+      "url": "https://github.com/pangramlabs/EditLens/blob/main/configs/roberta.yaml"
+    }
+  ],
+  "implementation_traps": [
+    "The actual inference argparse flag is --base_model; the inspected README example uses --model_name. Follow the pinned executable code.",
+    "The reference adapter-type detector broadly catches download exceptions. Do not reproduce an authentication failure as a false assertion that no adapter_config.json exists.",
+    "The official inference output column names are derived from the base model tag; normalise them into the unified contract.",
+    "Keep upstream-native truncation separate from a custom common-window/max-score wrapper.",
+    "Both baseline scores are document/window outputs, not native span classifications."
+  ],
+  "follow_up_verification_required": [
+    "Authorised checkpoint/base/tokenizer download and immutable revision resolution.",
+    "All saved head and adapter parameters loaded correctly.",
+    "Numeric parity with pinned upstream inference under matching precision.",
+    "Actual dataset inventories, annotation conventions, grouping, licences, and source overlap."
+  ]
+}

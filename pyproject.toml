@@ -1,0 +1,45 @@
+[project]
+name = "aidet_eval"
+version = "0.1.0"
+description = "Reproducible AI-text-detector evaluation suite (benchmark build, inference adapters, calibration, results contract, local viewer)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "pydantic>=2",
+    "pyyaml",
+    "emoji",
+    "scipy",
+    "scikit-learn",
+    "datasets>=3.0",
+    "huggingface_hub",
+    "requests",
+    "datasketch",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "torch>=2.5",
+    "transformers>=4.50",
+    "peft>=0.15",
+    "bitsandbytes>=0.45",
+    "accelerate>=1.0",
+    "safetensors",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+aidet_eval = ["viewer/static/*", "schemas/*.json", "configs/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
