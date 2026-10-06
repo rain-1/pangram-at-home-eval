@@ -129,3 +129,47 @@ td.lown .big, td.lown .sub { opacity: .45; }
 .sub.smalln { color: var(--warn-fg); opacity: 1 !important; font-weight: 600; }
 table.grouped td.compact { padding: 6px 8px; } table.grouped td.compact .big { font-size: 14px; }
 table.grouped th { font-size: 12px; }
+
+/* any number of detectors: identity colours from palette slots 1-6 (swatches always sit next to a text label) */
+:root { --m3: #1baf7a; --m4: #eda100; --m5: #e87ba4; --m6: #008300; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m3: #199e70; --m4: #c98500; --m5: #d55181; --m6: #008300; } }
+:root[data-theme="dark"] { --m3: #199e70; --m4: #c98500; --m5: #d55181; --m6: #008300; }
+.sw.m3 { background: var(--m3); } .sw.m4 { background: var(--m4); } .sw.m5 { background: var(--m5); } .sw.m6 { background: var(--m6); }
+.chartwrap path.m3 { stroke: var(--m3); } .chartwrap path.m4 { stroke: var(--m4); } .chartwrap path.m5 { stroke: var(--m5); } .chartwrap path.m6 { stroke: var(--m6); }
+.chartwrap .dot.m3, .chartwrap .opdot.m3 { fill: var(--m3); } .chartwrap .dot.m4, .chartwrap .opdot.m4 { fill: var(--m4); }
+.chartwrap .dot.m5, .chartwrap .opdot.m5 { fill: var(--m5); } .chartwrap .dot.m6, .chartwrap .opdot.m6 { fill: var(--m6); }
+.detpicker label.chk { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; white-space: nowrap; }
+.metricgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 760px), 1fr)); gap: 6px 24px; }
+.detblock h3 { margin: 12px 0 2px; }
+table.dettable th.det { white-space: nowrap; }
+p.small { font-size: 12px; margin: 2px 0; }
+
+/* 8-step goodness colours: green -> off-white -> orange -> red (light and dark variants; numbers stay in text ink) */
+:root { --c0: #4fb36c; --c1: #84cf95; --c2: #bfe6c6; --c3: #f4f1e4; --c4: #fbdcb4; --c5: #f6b46e; --c6: #ec8a72; --c7: #d9534f; --cfg-strong: #0b0b0b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --c0: #1f6e3a; --c1: #2d5e3c; --c2: #2f4a37; --c3: #3a3933; --c4: #5c4a2c; --c5: #7a5522; --c6: #7f3a2e; --c7: #9a2b2b; --cfg-strong: #ffffff; } }
+:root[data-theme="dark"] { --c0: #1f6e3a; --c1: #2d5e3c; --c2: #2f4a37; --c3: #3a3933; --c4: #5c4a2c; --c5: #7a5522; --c6: #7f3a2e; --c7: #9a2b2b; --cfg-strong: #ffffff; }
+.cstep.c0 { background: var(--c0); } .cstep.c1 { background: var(--c1); } .cstep.c2 { background: var(--c2); } .cstep.c3 { background: var(--c3); }
+.cstep.c4 { background: var(--c4); } .cstep.c5 { background: var(--c5); } .cstep.c6 { background: var(--c6); } .cstep.c7 { background: var(--c7); }
+td.cstep .big { color: var(--cfg-strong); }
+td.cstep .sub { color: var(--cfg-strong); opacity: .72; }
+.colourkey { margin: 8px 0 4px; font-size: 12px; }
+.ckrow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 2px; margin: 3px 0; }
+.cklabel { width: 230px; color: var(--muted); align-self: center; }
+.ckcell { min-width: 74px; text-align: center; padding: 3px 4px; border-radius: 3px; color: var(--cfg-strong); }
+
+/* row-relative colours: five distinct hues (green, lime, off-white, orange, red), light and dark */
+:root { --r0: #3fae5f; --r1: #c5e384; --r2: #f2efe2; --r3: #f6a957; --r4: #e05d5d; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --r0: #237a3e; --r1: #5d6f25; --r2: #3a3933; --r3: #8a5418; --r4: #9a2b2b; } }
+:root[data-theme="dark"] { --r0: #237a3e; --r1: #5d6f25; --r2: #3a3933; --r3: #8a5418; --r4: #9a2b2b; }
+.rstep.r0 { background: var(--r0); } .rstep.r1 { background: var(--r1); } .rstep.r2 { background: var(--r2); }
+.rstep.r3 { background: var(--r3); } .rstep.r4 { background: var(--r4); }
+td.rstep .big { color: var(--cfg-strong); } td.rstep .sub { color: var(--cfg-strong); opacity: .72; }
+.ckcell.rstep { color: var(--cfg-strong); min-width: 90px; }
+.ckhint { margin-left: 8px; align-self: center; }
+/* identity slots 7-8 (reference palette violet, red) */
+:root { --m7: #4a3aa7; --m8: #e34948; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m7: #9085e9; --m8: #e66767; } }
+:root[data-theme="dark"] { --m7: #9085e9; --m8: #e66767; }
+.sw.m7 { background: var(--m7); } .sw.m8 { background: var(--m8); }
+.chartwrap path.m7 { stroke: var(--m7); } .chartwrap path.m8 { stroke: var(--m8); }
+.chartwrap .dot.m7, .chartwrap .opdot.m7 { fill: var(--m7); } .chartwrap .dot.m8, .chartwrap .opdot.m8 { fill: var(--m8); }

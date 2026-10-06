@@ -39,3 +39,85 @@ models:
       quantisation: {load_in_4bit: true, bnb_4bit_quant_type: nf4, bnb_4bit_compute_dtype: bfloat16}
     batch_size: 8
     licence: CC-BY-NC-SA-4.0 (adapter); Llama 3.2 Community License (base)
+
+  # Workbench token detectors scored on the training Space (35B MoE does not fit locally); see models/precomputed.py.
+  - id: moe_base_s1_mean
+    display_name: Qwen3.6-35B-A3B span detector (woog data, seed 1, mean)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-base-lr1e4-w10-s1
+    checkpoint: stage2-epoch2-adapters
+    score_field: mean_token
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md
+  - id: moe_base_s1_maxsent
+    display_name: Qwen3.6-35B-A3B span detector (woog data, seed 1, maxsent)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-base-lr1e4-w10-s1
+    checkpoint: stage2-epoch2-adapters
+    score_field: max_sentence
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md
+  - id: moe_base_s2_mean
+    display_name: Qwen3.6-35B-A3B span detector (woog data, seed 2, mean)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-base-lr1e4-w10-s2
+    checkpoint: stage2-epoch2-adapters
+    score_field: mean_token
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md
+  - id: moe_base_s2_maxsent
+    display_name: Qwen3.6-35B-A3B span detector (woog data, seed 2, maxsent)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-base-lr1e4-w10-s2
+    checkpoint: stage2-epoch2-adapters
+    score_field: max_sentence
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md
+  - id: moe_mix_s1_mean
+    display_name: Qwen3.6-35B-A3B span detector (woog data + rain1 additions, seed 1, mean)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-mix-lr1e4-w10-s1
+    checkpoint: stage2-epoch2-adapters
+    score_field: mean_token
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md
+  - id: moe_mix_s1_maxsent
+    display_name: Qwen3.6-35B-A3B span detector (woog data + rain1 additions, seed 1, maxsent)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-mix-lr1e4-w10-s1
+    checkpoint: stage2-epoch2-adapters
+    score_field: max_sentence
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md
+  - id: moe_mix_s2_mean
+    display_name: Qwen3.6-35B-A3B span detector (woog data + rain1 additions, seed 2, mean)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-mix-lr1e4-w10-s2
+    checkpoint: stage2-epoch2-adapters
+    score_field: mean_token
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md
+  - id: moe_mix_s2_maxsent
+    display_name: Qwen3.6-35B-A3B span detector (woog data + rain1 additions, seed 2, maxsent)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-mix-lr1e4-w10-s2
+    checkpoint: stage2-epoch2-adapters
+    score_field: max_sentence
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md
+  - id: moe_mix2_s2_mean
+    display_name: Qwen3.6-35B-A3B span detector (woog data + balanced rain1 mix v2 on hetero v1.4.0, stage 2 from seed-2 base stage 1, mean)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-mix2-lr1e4-w10-s2
+    checkpoint: stage2-epoch2-adapters
+    score_field: mean_token
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md
+  - id: moe_mix2_s2_maxsent
+    display_name: Qwen3.6-35B-A3B span detector (woog data + balanced rain1 mix v2 on hetero v1.4.0, stage 2 from seed-2 base stage 1, maxsent)
+    adapter: aidet_eval.models.precomputed:PrecomputedDetector
+    scores_dir: artifacts/external_scores
+    tag: moe-mix2-lr1e4-w10-s2
+    checkpoint: stage2-epoch2-adapters
+    score_field: max_sentence
+    licence: research checkpoint; training data licences in workbench research/DATA_SOURCES.md

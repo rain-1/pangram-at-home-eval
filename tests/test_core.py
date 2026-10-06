@@ -275,6 +275,8 @@ def test_editlens_declares_no_native_spans_and_extent_semantics():
     from aidet_eval.models.base import load_detector
 
     for spec in yaml.safe_load(open("configs/models.yaml"))["models"]:
+        if not spec["adapter"].endswith(":EditLensDetector"):
+            continue
         cap = load_detector(spec).capabilities()
         assert cap.native_spans is False
         assert cap.score_semantics == "ordinal_ai_intervention_extent"
@@ -313,3 +315,23 @@ def test_detokenisation_is_lossless_and_natural():
     odd = 'he said " hello there .'
     out3, info3 = detok_checked(odd, "wikitext")
     assert "unbalanced_quotes_left_spaced" in info3["flags"] and ' " hello' in out3
+
+
+
+def test_precomputed_scores_require_matching_text_hash(tmp_path):
+    import hashlib
+
+    from aidet_eval.models.base import DetectorInput
+    from aidet_eval.models.precomputed import PrecomputedDetector
+
+    (tmp_path / "t--ck.meta.json").write_text(json.dumps({"checkpoint_sha256": "x", "scorer": "fixture"}))
+    good = "fixture text one"
+    recs = [{"input_id": "a", "status": "ok", "mean_token": 0.7, "text_sha256": hashlib.sha256(good.encode()).hexdigest()},
+            {"input_id": "b", "status": "ok", "mean_token": 0.2, "text_sha256": "0" * 64}]
+    (tmp_path / "t--ck--00of01.jsonl").write_text("".join(json.dumps(r) + "\n" for r in recs))
+    d = PrecomputedDetector({"id": "fixture_pre", "adapter": "x", "scores_dir": str(tmp_path), "tag": "t", "checkpoint": "ck", "score_field": "mean_token"})
+    d.load()
+    out = d.predict([DetectorInput("a", good), DetectorInput("b", "changed text"), DetectorInput("c", "missing")], truncate=False)
+    assert out[0].status == "ok" and out[0].score == 0.7
+    assert out[1].status == "error" and "mismatch" in out[1].error
+    assert out[2].status == "error" and out[2].score is None

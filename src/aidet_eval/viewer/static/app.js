@@ -114,7 +114,7 @@ function selectors(onchange) {
     el("label", {}, "Operating point ", select(ops, S.op, (v) => { S.op = v; onchange(); })));
 }
 
-// ------------------------------------------------------------------ scorecard (all detectors side by side)
+// ------------------------------------------------------------------ scorecard (any number of detectors)
 const PANEL_NAMES = {
   audited_human_core: "Human writing (pre-LLM, 5 domains)", student_human: "Student essays (human)",
   modern_human_instructions: "Instruction responses (human, No Robots)", benchmark_source_matched_human_references: "Human references from AI benchmarks",
@@ -128,8 +128,16 @@ const PANEL_NAMES = {
 const pname = (p) => PANEL_NAMES[p] || p;
 const PROTO_NAMES = { shared_windows_v1: "Overlapping windows, highest score (primary)", native_truncate_v1: "Official model behaviour (first 512/1024 tokens)" };
 const SMALL_N = 30;
-const short = (m) => m.replace(/^open_pangram_/, "");
-const models = () => S.summary.models.map((m) => m.model_id);
+const short = (m) => m.replace(/^open_pangram_/, "").replace(/_s(\d)_/, " s$1 ").replace(/_/g, " ");
+const allModels = () => S.summary.models.map((m) => m.model_id);
+// colour follows the detector (its position in the run's full list), never its rank among the visible ones
+const mclass = (m) => `m${(allModels().indexOf(m) % 8) + 1}`;
+function models() {
+  const all = allModels();
+  if (!S._shown || !S._shownRun || S._shownRun !== S.run) { S._shown = new Set(all); S._shownRun = S.run; }
+  return all.filter((m) => S._shown.has(m));
+}
+const swatch = (m) => el("i", { class: `sw ${mclass(m)}` });
 
 function cellFor(model, panel, slice, metric) {
   const key = sliceKey({ ...(slice || {}), view: "all" });
@@ -137,46 +145,84 @@ function cellFor(model, panel, slice, metric) {
     c.operating_point_id === S.op && sliceKey(c.slice) === key);
   return c ? c.metrics[metric] : null;
 }
-// goodness in [-1, 1]: false alarms (lower is better, log scale: 0.5% -> +1, 2% -> 0, 8% -> -1);
-// caught (higher is better: 90% -> +1, 50% -> 0, 10% -> -1)
-function goodness(rate, kind) {
+// 8 discrete colour steps (0 = best ... 7 = worst); bins chosen where the decisions are
+const BINS = {
+  fpr: [0.0025, 0.005, 0.01, 0.02, 0.05, 0.10, 0.25],   // wrongly flagged: rate <= edge -> step index
+  recall: [0.95, 0.90, 0.80, 0.65, 0.50, 0.35, 0.20],   // caught: rate >= edge -> step index
+};
+const STEP_NAMES = ["dark green", "green", "light green", "off-white", "light orange", "orange", "red", "dark red"];
+function colourStep(rate, kind) {
   if (rate === null || rate === undefined || !kind) return null;
-  if (kind === "fpr") return Math.max(-1, Math.min(1, (Math.log10(0.02) - Math.log10(Math.max(rate, 1e-4))) / Math.log10(4)));
-  return Math.max(-1, Math.min(1, (rate - 0.5) / 0.4));
+  const e = BINS[kind];
+  for (let i = 0; i < e.length; i++) if (kind === "fpr" ? rate <= e[i] : rate >= e[i]) return i;
+  return 7;
 }
-function tint(td, g) {
-  if (g === null) return;
-  const a = (0.34 * Math.abs(g)).toFixed(3);
-  td.style.backgroundColor = g >= 0 ? `rgba(12, 163, 12, ${a})` : `rgba(208, 59, 59, ${a})`;
+function tint(td, step) {
+  if (step === null) return;
+  td.classList.add("cstep", `c${step}`);
 }
-// one rate: big number, count, inline interval; small denominators greyed
-function rateTd(rate, k, n, ci, reason, cls, compact, kind) {
-  const td = el("td", { class: `num ${cls || ""}` });
+// row-relative colouring: compare the detectors within one row (5 distinct hues, best -> worst)
+const REL_NAMES = ["best in row", "near best", "middle", "behind", "worst in row"];
+function colourRow(tds) {
+  if ((S.colourMode || "row") !== "row") return;
+  const vals = tds.filter((td) => td.dataset && td.dataset.rate !== undefined && td.dataset.kind).map((td) => {
+    const r = parseFloat(td.dataset.rate), k = td.dataset.kind;
+    return { td, k, v: k === "fpr" ? Math.log10(Math.max(r, 0.0005)) : r };  // FPR on a log scale
+  });
+  if (vals.length < 2) return;
+  const k = vals[0].k;
+  const best = k === "fpr" ? Math.min(...vals.map((x) => x.v)) : Math.max(...vals.map((x) => x.v));
+  const worst = k === "fpr" ? Math.max(...vals.map((x) => x.v)) : Math.min(...vals.map((x) => x.v));
+  const minSpread = k === "fpr" ? Math.log10(2) : 0.05;  // differences smaller than this stay close in colour
+  const span = Math.max(Math.abs(worst - best), minSpread);
+  for (const x of vals) {
+    const t = Math.abs(x.v - best) / span;
+    const step = t < 0.15 ? 0 : t < 0.4 ? 1 : t < 0.6 ? 2 : t < 0.85 ? 3 : 4;
+    x.td.classList.add("rstep", `r${step}`);
+    x.td.title += ` · ${REL_NAMES[step]}`;
+  }
+}
+function colourKey() {
+  if ((S.colourMode || "row") === "row")
+    return el("div", { class: "colourkey" }, el("div", { class: "ckrow" }, el("span", { class: "cklabel" }, "Colour compares detectors within each row:"),
+      ...REL_NAMES.map((n, i) => el("span", { class: `ckcell rstep r${i}` }, n)),
+      el("span", { class: "muted ckhint" }, "(false alarms compared on a log scale; differences under 5 pp, or under 2× for false alarms, stay close in colour)")));
+  const fmt = (v) => `${pnum(100 * v)}%`;
+  const row = (kind, label) => el("div", { class: "ckrow" }, el("span", { class: "cklabel" }, label),
+    ...STEP_NAMES.map((n, i) => { const e = BINS[kind];
+      const txt = kind === "fpr" ? (i === 0 ? `≤ ${fmt(e[0])}` : i === 7 ? `> ${fmt(e[6])}` : `≤ ${fmt(e[i])}`)
+                                 : (i === 0 ? `≥ ${fmt(e[0])}` : i === 7 ? `< ${fmt(e[6])}` : `≥ ${fmt(e[i])}`);
+      return el("span", { class: `ckcell cstep c${i}`, title: n }, txt); }));
+  return el("div", { class: "colourkey" }, row("fpr", "Wrongly flagged (lower is better)"), row("recall", "Caught (higher is better)"));
+}
+function rateTd(rate, k, n, ci, reason, kind, compact) {
+  const td = el("td", { class: "num" + (compact ? " compact" : "") });
   if (rate === null || rate === undefined || !n) { td.appendChild(el("span", { class: "na", title: reason || "no documents of this kind here" }, "—")); return td; }
   const small = n < SMALL_N;
   if (small) td.classList.add("lown");
-  td.title = `${k} of ${n}` + (ci ? ` · 95% interval ${pnum(100 * ci[0])}–${pnum(100 * ci[1])}%` : "") + (small ? ` · only ${n} documents: too few to trust` : "");
   const degenerate = ci && ci[0] === ci[1];
+  td.title = `${k} of ${n}` + (ci ? (degenerate ? " · degenerate interval (every resample gave the same value; not certainty)" : ` · 95% interval ${pnum(100 * ci[0])}–${pnum(100 * ci[1])}%`) : "") + (small ? ` · only ${n} documents: too few to trust` : "");
   const ciTxt = !ci || compact ? "" : degenerate ? " · no interval*" : ` · ${pnum(100 * ci[0])}–${pnum(100 * ci[1])}`;
-  if (degenerate) td.title += " (degenerate bootstrap interval: every resample gave the same value; do not read it as certainty)";
   td.append(el("div", { class: "big" }, `${pnum(100 * rate)}%`), el("div", { class: "sub" }, `${k}/${n}` + ciTxt));
   if (small) td.appendChild(el("div", { class: "sub smalln" }, "small n"));
-  else tint(td, goodness(rate, kind));
+  else {
+    td.dataset.rate = String(rate); td.dataset.kind = kind || "";
+    if ((S.colourMode || "row") === "absolute") tint(td, colourStep(rate, kind));
+  }
   return td;
 }
-const kindOf = (metric) => metric === "human_fpr" ? "fpr" : (metric && metric.endsWith("recall") ? "recall" : null);
-const metricTdAll = (m, i, metric) => m && m.value !== null && m.value !== undefined
-  ? rateTd(m.value, m.numerator, m.denominator, m.ci ? [m.ci.lower, m.ci.upper] : null, null, `mcol m${i + 1}c`, false, kindOf(metric))
-  : rateTd(null, 0, 0, null, m ? (m.reason || m.status) : "no data", `mcol m${i + 1}c`);
-// table with a header row per metric spanning one column per detector
-function groupedTable(firstHeader, metrics, rows) {
+const kindOf = (metric) => (metric === "human_fpr" || (metric || "").endsWith("_fpr")) ? "fpr" : "recall";
+const metricCellTd = (m, metric) => m && m.value !== null && m.value !== undefined
+  ? rateTd(m.value, m.numerator, m.denominator, m.ci ? [m.ci.lower, m.ci.upper] : null, null, kindOf(metric))
+  : rateTd(null, 0, 0, null, m ? (m.reason || m.status) : "no data");
+// rows = things, columns = visible detectors
+function detTable(firstHeader, rowLabels, cellFn, title, note) {
   const ms = models();
-  const h1 = el("tr", {}, el("th", { rowspan: 2 }, firstHeader), ...metrics.map((m) => el("th", { colspan: ms.length, class: "grp" }, m)));
-  const h2 = el("tr", {}, ...metrics.flatMap(() => ms.map((m, i) => el("th", { class: "num det" }, el("i", { class: `sw m${i + 1}` }), short(m)))));
-  return el("div", { class: "tablewrap" }, el("table", { class: "clean grouped" }, el("thead", {}, h1, h2), el("tbody", {}, rows)));
-}
-function detectorLegend() {
-  return el("div", { class: "legendrow" }, "Detectors: ", ...models().map((m, i) => el("span", { class: "key" }, el("i", { class: `sw m${i + 1}` }), m)));
+  const t = el("table", { class: "clean dettable" },
+    el("thead", {}, el("tr", {}, el("th", {}, firstHeader), ...ms.map((m) => el("th", { class: "num det", title: m }, swatch(m), short(m))))),
+    el("tbody", {}, rowLabels.map(([key, label]) => { const tds = ms.map((m) => cellFn(m, key)); colourRow(tds);
+      return el("tr", {}, el("td", {}, label), ...tds); })));
+  return el("div", { class: "detblock" }, title ? el("h3", {}, title) : null, note ? el("p", { class: "muted small" }, note) : null, el("div", { class: "tablewrap" }, t));
 }
 
 function renderScorecard() {
@@ -186,44 +232,51 @@ function renderScorecard() {
   const run = S.runs.find((r) => r.run === S.run) || {};
   if (run.profile && run.profile !== "full") root.appendChild(el("div", { class: "explore" }, el("b", { class: "tag" }, "SMOKE TEST RUN: "),
     `only ${run.n_evaluation} documents — a software check, not a result. Pick a full run above.`));
+  models();
   root.appendChild(el("div", { class: "controls" },
     el("label", {}, "How documents are read ", select(S.summary.protocols.map((p) => [p.protocol_id, PROTO_NAMES[p.protocol_id] || p.protocol_id]), S.protocol, (v) => { S.protocol = v; renderScorecard(); })),
-    el("label", {}, "False-alarm budget ", select(ops.map((o) => [o, opLabel(o)]), S.op, (v) => { S.op = v; renderScorecard(); }))));
-  const thr = models().map((m) => S.summary.operating_points.find((o) => o.model_id === m && o.protocol_id === S.protocol && o.operating_point_id === S.op));
+    el("label", {}, "False-alarm budget ", select(ops.map((o) => [o, opLabel(o)]), S.op, (v) => { S.op = v; renderScorecard(); })),
+    el("label", {}, "Cell colour ", select([["row", "Compare detectors in each row"], ["absolute", "Absolute quality bands"]], S.colourMode || "row", (v) => { S.colourMode = v; renderScorecard(); }))));
+  root.appendChild(el("div", { class: "controls detpicker" }, el("span", { class: "muted" }, "Detectors:"),
+    ...allModels().map((m) => el("label", { class: "chk", title: (S.summary.models.find((x) => x.model_id === m) || {}).display_name || m },
+      el("input", { type: "checkbox", checked: S._shown.has(m), onchange: (e) => { e.target.checked ? S._shown.add(m) : S._shown.delete(m); renderScorecard(); } }),
+      swatch(m), short(m)))));
+  const thr = models().map((m) => S.summary.operating_points.find((o) => o.model_id === m && o.protocol_id === S.protocol && o.operating_point_id === S.op)).filter(Boolean);
   root.appendChild(el("p", { class: "lede" }, "Each detector gets its own threshold, set so that ", el("b", {}, opLabel(S.op).split(" (")[0]),
-    ` of ${thr[0] ? thr[0].n_scored.toLocaleString() : "?"} held-out human calibration documents are flagged: `,
-    ...thr.flatMap((o, i) => o ? [el("i", { class: `sw m${i + 1}` }), `${short(o.model_id)} score > ${o.threshold.toFixed(3)}`, i < thr.length - 1 ? " · " : ""] : []),
-    `. Evaluation: ${run.n_evaluation ? run.n_evaluation.toLocaleString() : "?"} documents.`));
-  root.appendChild(detectorLegend());
+    ` of ${thr[0] ? thr[0].n_scored.toLocaleString() : "?"} held-out human calibration documents are flagged. Evaluation: ${run.n_evaluation ? run.n_evaluation.toLocaleString() : "?"} documents. `,
+    el("span", { class: "muted" }, "Thresholds: ", ...thr.flatMap((o) => [swatch(o.model_id), `${short(o.model_id)} > ${o.threshold.toPrecision(3)}  `]))));
 
-  // headline rows
-  root.appendChild(el("h2", {}, "Headline"));
-  const heads = [["Human writing wrongly flagged", "audited_human_core", "human_fpr"], ["Student essays wrongly flagged", "student_human", "human_fpr"],
-    ["Fully AI texts caught", "fully_ai_core", "fully_ai_recall"], ["AI sentences inserted: caught", "controlled_replacement", "mixed_recall"],
-    ["AI blocks inserted: caught", "heterogeneous_block_replacement", "mixed_recall"], ["Real co-writing caught", "aitdna_real_cowriting", "mixed_recall"]];
-  root.appendChild(el("div", { class: "tablewrap" }, el("table", { class: "clean" },
-    el("thead", {}, el("tr", {}, el("th", {}, ""), ...models().map((m, i) => el("th", { class: "num det" }, el("i", { class: `sw m${i + 1}` }), short(m))))),
-    el("tbody", {}, heads.map(([lab, p, met]) => el("tr", {}, el("td", {}, lab), ...models().map((m, i) => metricTdAll(cellFor(m, p, {}, met), i, met))))))));
+  root.appendChild(colourKey());
+  const heads = [["audited_human_core|human_fpr", "Human writing wrongly flagged"], ["student_human|human_fpr", "Student essays wrongly flagged"],
+    ["fully_ai_core|fully_ai_recall", "Fully AI texts caught"], ["controlled_replacement|mixed_recall", "AI sentences inserted: caught"],
+    ["heterogeneous_block_replacement|mixed_recall", "AI blocks inserted: caught"], ["aitdna_real_cowriting|mixed_recall", "Real co-writing caught"]];
+  root.appendChild(detTable("Headline", heads, (m, key) => { const [p, met] = key.split("|"); return metricCellTd(cellFor(m, p, {}, met), met); }, "Headline"));
 
-  // by domain, all detectors
-  root.appendChild(el("h2", {}, "By domain"));
   const doms = [["research", "Research"], ["news", "News"], ["reviews", "Reviews"], ["expository", "Encyclopedia / reports"], ["creative", "Fiction"]];
-  const cols = [["Human writing wrongly flagged", "audited_human_core", "human_fpr"], ["Fully AI caught", "fully_ai_core", "fully_ai_recall"],
-    ["AI sentences inserted: caught", "controlled_replacement", "mixed_recall"], ["AI blocks inserted: caught", "heterogeneous_block_replacement", "mixed_recall"]];
-  root.appendChild(groupedTable("Domain", cols.map((c) => c[0]), doms.map(([d, lab]) => el("tr", {}, el("td", {}, lab),
-    ...cols.flatMap(([, p, met]) => models().map((m, i) => metricTdAll(cellFor(m, p, { domain: d }, met), i, met)))))));
+  const grid = el("div", { class: "metricgrid" });
+  for (const [p, met, title] of [["audited_human_core", "human_fpr", "Human writing wrongly flagged"], ["fully_ai_core", "fully_ai_recall", "Fully AI caught"],
+    ["controlled_replacement", "mixed_recall", "AI sentences inserted: caught"], ["heterogeneous_block_replacement", "mixed_recall", "AI blocks inserted: caught"]])
+    grid.appendChild(detTable("Domain", doms, (m, d) => metricCellTd(cellFor(m, p, { domain: d }, met), met), title));
+  root.append(el("h2", {}, "By domain"), grid);
   root.appendChild(el("ul", { class: "muted notes" },
-    el("li", {}, "Colour: green = good, red = bad, white = middling. For “wrongly flagged”, lower is better (green ≤ 0.5%, white ≈ 2%, red ≥ 8%); for “caught”, higher is better (green ≥ 90%, white ≈ 50%, red ≤ 10%). Small-n cells are not coloured."),
-    el("li", {}, "Small grey numbers: count and 95% interval. Cells based on fewer than 30 documents are greyed and marked “small n”. “no interval*” = every resample gave the same value (clustered data), which is not certainty."),
-    el("li", {}, "AI blocks inserted, Encyclopedia / reports: these are Federal Reserve Beige Book reports, whose human originals are also flagged often, so this number mostly reflects the genre."),
-    el("li", {}, "Scores are an AI-editing extent signal, not a probability.")));
+    el("li", {}, "Colour: see the key at the top (switch between “compare detectors in each row” and absolute bands with “Cell colour”). Cells with fewer than 30 documents are greyed (“small n”) and not coloured."),
+    el("li", {}, "Small grey numbers: count and 95% interval. “no interval*”: every resample gave the same value (clustered data) — not certainty."),
+    el("li", {}, "AI blocks inserted come from generate-heterogeneous: in-distribution for any detector trained on that release, and its Encyclopedia/reports cell is Federal Reserve Beige Books (genre confound)."),
+    el("li", {}, "Scores are AI-likelihood/extent signals, not calibrated probabilities.")));
 
+  root.appendChild(section("Hard human genres (stress test)", true, () => stressSection()));
   root.appendChild(section("What if the false-alarm budget were different?", true, () => whatifSection()));
   root.appendChild(section("Break down by category", true, () => categoryBreakdown()));
   root.appendChild(section("How well each detector separates AI from human (ROC / AUROC)", true, () => rocSection()));
-  root.appendChild(section("Every panel", false, () => groupedTable("Panel", ["Humans wrongly flagged", "Fully AI caught", "Mixed caught"],
-    [...new Set(cells().filter((c) => c.protocol_id === S.protocol && !c.task_id).map((c) => c.panel_id))].filter((p) => !p.startsWith("_")).sort().map((p) =>
-      el("tr", {}, el("td", { title: p }, pname(p)), ...["human_fpr", "fully_ai_recall", "mixed_recall"].flatMap((met) => models().map((m, i) => metricTdAll(cellFor(m, p, {}, met), i, met))))))));
+  root.appendChild(section("Every panel", false, () => {
+    const panels = [...new Set(cells().filter((c) => c.protocol_id === S.protocol && !c.task_id).map((c) => c.panel_id))].filter((p) => !p.startsWith("_")).sort();
+    const g = el("div", { class: "metricgrid" });
+    for (const [met, title] of [["human_fpr", "Humans wrongly flagged"], ["fully_ai_recall", "Fully AI caught"], ["mixed_recall", "Mixed caught"]]) {
+      const rows = panels.filter((p) => models().some((m) => { const x = cellFor(m, p, {}, met); return x && x.value !== null; })).map((p) => [p, pname(p)]);
+      g.appendChild(detTable("Panel", rows, (m, p) => metricCellTd(cellFor(m, p, {}, met), met), title));
+    }
+    return g;
+  }));
   root.appendChild(section("Coverage and speed", false, () => table(["detector", "reading", "documents", "scored", "errors"],
     S.summary.coverage.map((c) => [c.model_id, PROTO_NAMES[c.protocol_id] || c.protocol_id, c.expected, c.ok || 0, c.error || 0]))));
   root.appendChild(el("p", { class: "muted" }, "Downloads: ", el("a", { href: `/api/download?run=${encodeURIComponent(S.run)}&name=results.summary.cells.csv` }, "all cells (CSV)"), " · ",
@@ -237,53 +290,61 @@ function section(title, open, build) {
   return d;
 }
 
-// what-if budgets: thresholds from the calibration humans at several budgets, all detectors at once
-function whatifSection() {
+function stressSection() {
   const box = el("div", {});
   if (!S.hasFull) { box.appendChild(el("p", { class: "na" }, "Needs results.full.json.")); return box; }
-  box.appendChild(el("p", { class: "muted" }, "Each row sets every detector’s threshold so that the given share of the held-out human calibration documents would be flagged, then shows what happens on the evaluation set. 1% and 5% match the official operating points; the others are exploratory. Hover a cell for its 95% interval."));
+  box.appendChild(el("p", { class: "muted" }, "Human writing (all published before modern LLMs) from genres that trip detectors. Same official thresholds. These are not part of the headline human-writing panel; read them as stress tests."));
   const out = el("div", {});
   box.appendChild(out);
-  api("/api/whatif", { run: S.run, protocol: S.protocol }).then((r) => {
-    const cols = [["human_fpr", "Humans wrongly flagged"], ["student_fpr", "Students wrongly flagged"], ["fully_ai", "Fully AI caught"],
-      ["sentences", "AI sentences caught"], ["blocks", "AI blocks caught"], ["cowriting", "Co-writing caught"]];
-    const ms = models();
-    out.appendChild(groupedTable("Budget", cols.map((c) => c[1]), r.budgets.map((b) => el("tr", {}, el("td", {}, el("b", {}, `${pnum(100 * b)}%`)),
-      ...cols.flatMap(([k]) => ms.map((m, i) => { const row = r.rows.find((x) => x.model === m && x.budget === b); const v = row && row[k];
-        return v ? rateTd(v.rate, v.k, v.n, v.ci, null, `mcol m${i + 1}c compact`, true, k.endsWith("_fpr") ? "fpr" : "recall") : rateTd(null, 0, 0); }))))));
-    out.appendChild(el("p", { class: "muted" }, "Thresholds: ", ...r.budgets.map((b) => el("span", { class: "ro" }, `${pnum(100 * b)}%: `,
-      ...ms.map((m, i) => { const row = r.rows.find((x) => x.model === m && x.budget === b); return el("span", {}, el("i", { class: `sw m${i + 1}` }), row && row.threshold !== null ? row.threshold.toFixed(3) + " " : "– "); }))),
-      ". Intervals here: Wilson 95%, assuming independent documents."));
+  api("/api/stress", { run: S.run, protocol: S.protocol, op: S.op }).then((r) => {
+    out.appendChild(detTable("Human genre", r.rows.map((x, i) => [i, x.genre]), (m, i) => { const v = r.rows[i].by_model[m];
+      return v ? rateTd(v.rate, v.k, v.n, v.ci, null, "fpr") : rateTd(null, 0, 0); }));
+    out.appendChild(el("p", { class: "muted small" }, r.interval + "."));
   }).catch((e) => out.appendChild(el("p", { class: "na" }, String(e))));
   return box;
 }
 
-// ------------------------------------------------------------------ per-category breakdown (official decisions, all detectors)
+function whatifSection() {
+  const box = el("div", {});
+  if (!S.hasFull) { box.appendChild(el("p", { class: "na" }, "Needs results.full.json.")); return box; }
+  box.appendChild(el("p", { class: "muted" }, "Each row sets every detector’s threshold so that the given share of the held-out human calibration documents would be flagged. 1% and 5% match the official operating points; the others are exploratory. Hover a cell for its 95% interval."));
+  const out = el("div", { class: "metricgrid" });
+  box.appendChild(out);
+  api("/api/whatif", { run: S.run, protocol: S.protocol }).then((r) => {
+    const budgets = r.budgets.map((b) => [b, `${pnum(100 * b)}%`]);
+    for (const [k, title] of [["human_fpr", "Human writing wrongly flagged"], ["student_fpr", "Students wrongly flagged"], ["fully_ai", "Fully AI caught"],
+      ["sentences", "AI sentences caught"], ["blocks", "AI blocks caught"], ["cowriting", "Co-writing caught"]])
+      out.appendChild(detTable("Budget", budgets, (m, b) => { const row = r.rows.find((x) => x.model === m && x.budget === b); const v = row && row[k];
+        return v ? rateTd(v.rate, v.k, v.n, v.ci, null, k.endsWith("_fpr") ? "fpr" : "recall", true) : rateTd(null, 0, 0); }, title));
+  }).catch((e) => out.appendChild(el("p", { class: "na" }, String(e))));
+  return box;
+}
+
 const BY_NAMES = [["subdomain", "Category"], ["dataset", "Source dataset"], ["generator", "Generator"], ["mechanism", "How AI was mixed in"],
   ["length_bin", "Length"], ["frac_bin", "Share of text written by AI"], ["domain", "Domain"], ["provenance_tier", "Human provenance"]];
 function categoryBreakdown() {
   const box = el("div", {});
   if (!S.hasFull) { box.appendChild(el("p", { class: "na" }, "Needs results.full.json.")); return box; }
-  const st = S._bd || (S._bd = { by: "subdomain", panel: "", domain: "" });
+  const st = S._bd || (S._bd = { by: "subdomain", panel: "", domain: "", cls: "human" });
   const panels = [...new Set(cells().map((c) => c.panel_id))].filter((p) => !p.startsWith("task:") && !p.startsWith("_") && p !== "calibration_human").sort();
   const doms = [...new Set(cells().map((c) => c.slice.domain).filter(Boolean))].sort();
   const out = el("div", {});
-  box.append(el("p", { class: "muted" }, "Same official thresholds, split by any property. Columns: humans wrongly flagged, fully AI caught, mixed caught — one column per detector."),
+  box.append(el("p", { class: "muted" }, "Same official thresholds, split by any property."),
     el("div", { class: "controls" },
-      el("label", {}, "Split by ", select(BY_NAMES, st.by, (v) => { st.by = v; load(); })),
+      el("label", {}, "Show ", select([["human", "Humans wrongly flagged"], ["ai", "Fully AI caught"], ["mixed", "Mixed caught"]], st.cls, (v) => { st.cls = v; load(); })),
+      el("label", {}, "split by ", select(BY_NAMES, st.by, (v) => { st.by = v; load(); })),
       el("label", {}, "Panel ", select([["", "All evaluation documents"], ...panels.map((p) => [p, pname(p)])], st.panel, (v) => { st.panel = v; load(); })),
       el("label", {}, "Domain ", select([["", "All domains"], ...doms.map((d) => [d, d])], st.domain, (v) => { st.domain = v; load(); }))), out);
   async function load() {
     clear(out).appendChild(el("span", { class: "muted" }, "loading…"));
     const ms = models();
-    const res = await Promise.all(ms.map((m) => api("/api/breakdown", { run: S.run, model: m, protocol: S.protocol, op: S.op, by: st.by, panel: st.panel, domain: st.domain })));
-    const cats = res[0].rows.map((r) => r.category);
+    const res = Object.fromEntries(await Promise.all(ms.map(async (m) => [m, await api("/api/breakdown", { run: S.run, model: m, protocol: S.protocol, op: S.op, by: st.by, panel: st.panel, domain: st.domain })])));
+    const first = res[ms[0]];
+    const cats = first.rows.filter((r) => r[st.cls] && r[st.cls].scored).map((r) => [r.category, r.category]);
     const label = BY_NAMES.find((b) => b[0] === st.by)[1];
-    const cell = (j, cat, cls) => { const row = res[j].rows.find((r) => r.category === cat); const a = row && row[cls];
-      return a && a.scored ? rateTd(a.rate, a.flagged, a.scored, a.ci, null, `mcol m${j + 1}c`, false, cls === "human" ? "fpr" : "recall") : rateTd(null, 0, 0, null, null, `mcol m${j + 1}c`); };
-    clear(out).append(groupedTable(label, ["Humans wrongly flagged", "Fully AI caught", "Mixed caught"],
-      cats.map((cat) => el("tr", {}, el("td", {}, cat), ...["human", "ai", "mixed"].flatMap((cls) => ms.map((_, j) => cell(j, cat, cls)))))),
-      el("p", { class: "muted" }, res[0].interval + "."));
+    clear(out).append(cats.length ? detTable(label, cats, (m, cat) => { const row = res[m].rows.find((r) => r.category === cat); const a = row && row[st.cls];
+      return a && a.scored ? rateTd(a.rate, a.flagged, a.scored, a.ci, null, st.cls === "human" ? "fpr" : "recall") : rateTd(null, 0, 0); })
+      : el("p", { class: "na" }, "No documents of this kind for this selection."), el("p", { class: "muted small" }, first.interval + "."));
   }
   load().catch((e) => clear(out).appendChild(el("p", { class: "na" }, String(e))));
   return box;
@@ -303,16 +364,18 @@ function rocSection() {
       el("label", {}, el("input", { type: "checkbox", checked: st.log, onchange: (e) => { st.log = e.target.checked; load(); } }), " log scale for false alarms (focus on the low-false-alarm region)")), out);
   async function load() {
     clear(out).appendChild(el("span", { class: "muted" }, "computing curves…"));
-    const models = S.summary.models.map((m) => m.model_id);
-    const res = await Promise.all(models.map((m) => api("/api/roc", { run: S.run, model: m, protocol: S.protocol, op: S.op, task: st.task, humans: st.humans, by: st.by })));
+    const visible = models();
+    const rocModels = visible.slice(0, 3);
+    const res = await Promise.all(rocModels.map((m) => api("/api/roc", { run: S.run, model: m, protocol: S.protocol, op: S.op, task: st.task, humans: st.humans, by: st.by })));
     const groups = [...new Set(res.flatMap((r) => r.curves.map((c) => c.group)))];
     if (st.by === "generator") groups.sort();
     clear(out);
-    out.appendChild(el("div", { class: "legendrow" }, ...models.map((m, i) => el("span", { class: "key" }, el("i", { class: `sw m${i + 1}` }), m)),
-      el("span", { class: "key muted" }, "dot = official threshold · grey diagonal = chance")));
-    out.appendChild(aurocDots(groups, models, res));
+    out.appendChild(el("div", { class: "legendrow" }, ...rocModels.map((m) => el("span", { class: "key" }, swatch(m), short(m))),
+      el("span", { class: "key muted" }, "dot = official threshold · grey diagonal = chance"),
+      visible.length > 3 ? el("span", { class: "key prov" }, `Showing the first 3 of ${visible.length} ticked detectors (lines stay readable with ≤ 3); untick some above to compare others.`) : null));
+    out.appendChild(aurocDots(groups, rocModels, res));
     const grid = el("div", { class: "rocgrid" });
-    for (const g of groups) grid.appendChild(rocPanel(g, models, res.map((r) => r.curves.find((c) => c.group === g)), st.log));
+    for (const g of groups) grid.appendChild(rocPanel(g, rocModels, res.map((r) => r.curves.find((c) => c.group === g)), st.log));
     out.appendChild(grid);
   }
   load().catch((e) => clear(out).appendChild(el("p", { class: "na" }, String(e))));
@@ -344,13 +407,13 @@ function rocPanel(title, models, curves, log) {
     if (!c) return;
     let d = "";
     c.fpr.forEach((f, k) => { if (log && f < xmin && k < c.fpr.length - 1 && c.fpr[k + 1] < xmin) return; d += (d ? "L" : "M") + x(f).toFixed(1) + "," + y(c.tpr[k]).toFixed(1); });
-    mk("path", { d }, `curve m${i + 1}`);
+    mk("path", { d }, `curve ${mclass(models[i])}`);
   });
-  curves.forEach((c, i) => { if (c && c.operating_point) mk("circle", { cx: x(c.operating_point.fpr), cy: y(c.operating_point.tpr), r: 4.5 }, `opdot m${i + 1}`); });
+  curves.forEach((c, i) => { if (c && c.operating_point) mk("circle", { cx: x(c.operating_point.fpr), cy: y(c.operating_point.tpr), r: 4.5 }, `opdot ${mclass(models[i])}`); });
   const tip = el("div", { class: "tip" });
   const hit = mk("rect", { x: L, y: T, width: W - L - R, height: H - T - B }, "hit");
   hit.addEventListener("mousemove", throttled((ev) => {
-    clear(tip).append(el("div", {}, el("b", {}, title)), ...curves.map((c, i) => c ? el("div", {}, el("i", { class: `sw m${i + 1}` }),
+    clear(tip).append(el("div", {}, el("b", {}, title)), ...curves.map((c, i) => c ? el("div", {}, swatch(models[i]),
       `${models[i]}: AUROC ${c.auroc.toFixed(3)}` + (c.operating_point ? ` · at threshold: ${pct(c.operating_point.tpr)} caught, ${pct(c.operating_point.fpr)} humans flagged` : "")) : null));
     const b = wrap.getBoundingClientRect();
     tip.style.display = "block"; tip.style.left = Math.min(ev.clientX - b.left + 10, b.width - 250) + "px"; tip.style.top = (ev.clientY - b.top + 10) + "px";
@@ -374,15 +437,15 @@ function aurocDots(groups, models, res) {
   svg.setAttribute("aria-label", "AUROC per group for each detector");
   const mk = (tag, at, cls) => { const n = document.createElementNS(NS, tag); for (const k in at) n.setAttribute(k, at[k]); if (cls) n.setAttribute("class", cls); svg.appendChild(n); return n; };
   mk("text", { x: L, y: 12 }, "lab").textContent = "AUROC (1.0 = perfect separation)";
-  mk("text", { x: W - R + 10, y: 12 }).textContent = models.map((m) => m.replace("open_pangram_", "")).join("  |  ");
+  mk("text", { x: W - R + 10, y: 12 }).textContent = models.map((m) => short(m)).join("  |  ");
   for (let i = 0; i <= 4; i++) { const v = lo + (1 - lo) * i / 4; mk("line", { x1: x(v), x2: x(v), y1: T, y2: H - 22 }, "gridl"); mk("text", { x: x(v), y: H - 6, "text-anchor": "middle" }).textContent = v.toFixed(2); }
   groups.forEach((g, i) => {
     const yc = T + i * rowH + rowH / 2;
     mk("text", { x: L - 10, y: yc + 4, "text-anchor": "end" }, "lab").textContent = g.length > 26 ? g.slice(0, 25) + "…" : g;
     const pts = res.map((r) => (r.curves.find((c) => c.group === g) || {}).auroc).filter((v) => v !== undefined);
-    if (pts.length === 2) mk("line", { x1: x(Math.min(...pts)), x2: x(Math.max(...pts)), y1: yc, y2: yc }, "connector");
+    if (pts.length >= 2) mk("line", { x1: x(Math.min(...pts)), x2: x(Math.max(...pts)), y1: yc, y2: yc }, "connector");
     res.forEach((r, j) => { const c = r.curves.find((q) => q.group === g); if (!c) return;
-      const dot = mk("circle", { cx: x(c.auroc), cy: yc, r: 5 }, `dot m${j + 1}`);
+      const dot = mk("circle", { cx: x(c.auroc), cy: yc, r: 5 }, `dot ${mclass(models[j])}`);
       const t = document.createElementNS(NS, "title"); t.textContent = `${models[j]}: ${c.auroc.toFixed(3)} (AI ${c.n_pos}, human ${c.n_neg})`; dot.appendChild(t); });
     mk("text", { x: W - R + 10, y: yc + 4 }).textContent = res.map((r) => { const c = r.curves.find((q) => q.group === g); return c ? c.auroc.toFixed(3) : "–"; }).join("  |  ");
   });

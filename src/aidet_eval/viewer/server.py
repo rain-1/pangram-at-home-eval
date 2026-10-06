@@ -156,7 +156,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if name not in allowed:
                     return self._json({"error": "not downloadable"}, 400)
                 return self._file(run / name, allowed[name])
-            if u.path in ("/api/examples", "/api/example", "/api/scores", "/api/meta", "/api/breakdown", "/api/roc", "/api/whatif"):
+            if u.path in ("/api/examples", "/api/example", "/api/scores", "/api/meta", "/api/breakdown", "/api/roc", "/api/whatif", "/api/stress"):
                 idx = index_path(run)
                 if idx is None:
                     return self._json({"error": "full results not available for this run (summary-only)"}, 404)
@@ -181,6 +181,8 @@ class Handler(SimpleHTTPRequestHandler):
             return roc(con, q)
         if path == "/api/whatif":
             return whatif(con, q)
+        if path == "/api/stress":
+            return stress(con, q)
         if path == "/api/meta":
             return json.loads(con.execute("select v from meta where k='meta'").fetchone()[0])
         if path == "/api/example":
@@ -401,3 +403,29 @@ def whatif(con, q):
                 row[key] = {"rate": x / len(arr), "k": x, "n": int(len(arr)), "ci": [lo, hi]}
             out["rows"].append(row)
     return out
+
+
+STRESS_GENRES = [
+    ("JMLR machine-learning papers (2000–2014)", "e.panels like '%heterogeneous_matched_human_controls%' and json_extract(e.record,'$.original_labels.source_dataset')='jmlr_pre2015'"),
+    ("Standard Ebooks classic fiction (clean, unwrapped)", "e.panels like '%heterogeneous_matched_human_controls%' and json_extract(e.record,'$.original_labels.source_dataset')='standardebooks'"),
+    ("Gutenberg classic fiction (hard-wrapped)", "e.panels like '%heterogeneous_matched_human_controls%' and json_extract(e.record,'$.original_labels.source_dataset')='gutenberg_selected'"),
+    ("Gutenberg fiction continuations (HAP-E-2, unwrapped)", "e.dataset='hap_e2' and e.authorship='human'"),
+    ("Federal Reserve Beige Book reports", "e.panels like '%heterogeneous_matched_human_controls%' and json_extract(e.record,'$.original_labels.source_dataset')='beigebook'"),
+]
+
+
+def stress(con, q):
+    """Human texts from genres that are hard for detectors; all pre-LLM publications. Official decisions; Wilson intervals."""
+    from aidet_eval.metrics import wilson
+
+    op = q.get("op", "human_fpr_1pct")
+    rows = []
+    for label, where in STRESS_GENRES:
+        res = {}
+        for m, n, k in con.execute(f"select p.model, count(*), sum(json_extract(p.decisions, '$.' || ?)) from ex e join pred p "
+                                   f"on p.example_id=e.example_id where p.protocol=? and p.status='ok' and e.role='evaluation' and {where} group by p.model",
+                                   (op, q.get("protocol"))):
+            k = int(k or 0)
+            res[m] = {"k": k, "n": int(n), "rate": k / n if n else None, "ci": list(wilson(k, n)) if n else None}
+        rows.append({"genre": label, "by_model": res})
+    return {"rows": rows, "interval": "Wilson 95% (documents from the same book/paper are clustered; treat as approximate)"}
